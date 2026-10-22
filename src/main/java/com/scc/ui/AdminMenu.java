@@ -27,22 +27,24 @@ public class AdminMenu {
 
         boolean managing = true;
         while (managing) {
-            System.out.println("\n--- Administrator Dashboard ---");
-            System.out.println("1. View All Users");
-            System.out.println("2. View Pending User Approvals");
-            System.out.println("3. Add New User");
-            System.out.println("4. Update User");
-            System.out.println("5. Delete User");
-            System.out.println("6. Logout");
+            System.out.println("\n------ Administrator Dashboard ------");
+            System.out.println("1. View All System Users");
+            System.out.println("2. View Pending Registrations");
+            System.out.println("3. Approve User Account");
+            System.out.println("4. Add New User");
+            System.out.println("5. Update User");
+            System.out.println("6. Delete User");
+            System.out.println("7. Logout");
             System.out.print("Choose: ");
 
             switch (scanner.nextLine().trim()) {
                 case "1" -> viewAllUsers();
-                case "2" -> managePendingUsers();
-                case "3" -> addNewUser();
-                case "4" -> updateUser();
-                case "5" -> deleteUser();
-                case "6" -> {
+                case "2" -> viewPendingRegistrations();
+                case "3" -> approveUserAccount();
+                case "4" -> addNewUser();
+                case "5" -> updateUser();
+                case "6" -> deleteUser();
+                case "7" -> {
                     System.out.println("Logged out. Returning to main menu...");
                     managing = false;
                 }
@@ -59,55 +61,65 @@ public class AdminMenu {
             return;
         }
         System.out.printf("%-5s | %-15s | %-20s | %-10s%n", "ID", "Username", "Role", "Status");
-        System.out.println("-".repeat(58));
+        System.out.println("-".repeat(60));
         for (User u : users) {
             System.out.printf("%-5d | %-15s | %-20s | %-10s%n", u.id(), u.username(), u.roles(), u.status());
         }
     }
 
-    private void managePendingUsers() {
-        System.out.println("\n--- Pending User Approvals ---");
-        List<User> pendingUsers = userDao.getUsersByStatus("PENDING");
+    private void viewPendingRegistrations() {
+        System.out.println("\n--- Pending Registrations ---");
+        List<User> pendingUsers = userDao.getPendingUsers();
+        if (pendingUsers.isEmpty()) {
+            System.out.println("No pending accounts awaiting approval.");
+            return;
+        }
+        System.out.printf("%-5s | %-15s | %-20s | %-10s%n", "ID", "Username", "Role", "Status");
+        System.out.println("-".repeat(60));
+        for (User u : pendingUsers) {
+            System.out.printf("%-5d | %-15s | %-20s | %-10s%n", u.id(), u.username(), u.roles(), u.status());
+        }
+    }
+
+    private void approveUserAccount() {
+        System.out.println("\n--- Approve User Account ---");
+        List<User> pendingUsers = userDao.getPendingUsers();
         if (pendingUsers.isEmpty()) {
             System.out.println("No pending accounts to approve.");
             return;
         }
 
-        System.out.printf("%-5s | %-15s | %-20s%n", "ID", "Username", "Role");
-        System.out.println("-".repeat(45));
+        System.out.printf("%-5s | %-15s | %-20s | %-10s%n", "ID", "Username", "Role", "Status");
+        System.out.println("-".repeat(60));
         for (User u : pendingUsers) {
-            System.out.printf("%-5d | %-15s | %-20s%n", u.id(), u.username(), u.roles());
+            System.out.printf("%-5d | %-15s | %-20s | %-10s%n", u.id(), u.username(), u.roles(), u.status());
         }
 
-        System.out.print("Enter User ID to approve/reject (or 0 to go back): ");
+        System.out.print("Enter User ID to approve (or enter 0 to cancel): ");
         int id;
         try {
             id = Integer.parseInt(scanner.nextLine().trim());
         } catch (NumberFormatException e) {
-            System.out.println("Invalid ID.");
+            System.out.println("Invalid input.");
             return;
         }
 
-        if (id == 0) return;
-
-        System.out.print("Action - Type 'APPROVE' or 'REJECT': ");
-        String action = scanner.nextLine().trim().toUpperCase();
-
-        String newStatus = switch (action) {
-            case "APPROVE" -> "APPROVED";
-            case "REJECT" -> "REJECTED";
-            default -> null;
-        };
-
-        if (newStatus == null) {
-            System.out.println("Invalid action.");
+        if (id == 0) {
+            System.out.println("Approval action cancelled.");
             return;
         }
 
-        if (userDao.updateStatus(id, newStatus)) {
-            System.out.println("User status successfully updated to " + newStatus + "!");
+        // Verify if ID exists in pending list
+        boolean exists = pendingUsers.stream().anyMatch(u -> u.id() == id);
+        if (!exists) {
+            System.out.println("Error: User ID not found in the pending list.");
+            return;
+        }
+
+        if (userDao.approveUser(id)) {
+            System.out.println("User account successfully approved and updated to 'APPROVED'!");
         } else {
-            System.out.println("Failed to update user status.");
+            System.out.println("Failed to approve user account.");
         }
     }
 
@@ -157,7 +169,7 @@ public class AdminMenu {
     private void updateUser() {
         viewAllUsers();
         System.out.println("\n--- Update User ---");
-        System.out.print("Enter User ID to update: ");
+        System.out.print("Enter User ID to update (or 0 to cancel): ");
         int id;
         try {
             id = Integer.parseInt(scanner.nextLine().trim());
@@ -165,6 +177,8 @@ public class AdminMenu {
             System.out.println("Invalid ID.");
             return;
         }
+
+        if (id == 0) return;
 
         System.out.print("New Username: ");
         String username = scanner.nextLine().trim();
@@ -185,7 +199,7 @@ public class AdminMenu {
             return;
         }
 
-        System.out.print("New Status (e.g., APPROVED, PENDING, REJECTED): ");
+        System.out.print("New Status (e.g., APPROVED, PENDING): ");
         String status = scanner.nextLine().trim().toUpperCase();
 
         if (userDao.updateUser(id, username, ROLES[choice - 1], status)) {
@@ -198,7 +212,7 @@ public class AdminMenu {
     private void deleteUser() {
         viewAllUsers();
         System.out.println("\n--- Delete User ---");
-        System.out.print("Enter User ID to delete: ");
+        System.out.print("Enter User ID to delete (or 0 to cancel): ");
         int id;
         try {
             id = Integer.parseInt(scanner.nextLine().trim());
@@ -206,6 +220,8 @@ public class AdminMenu {
             System.out.println("Invalid ID.");
             return;
         }
+
+        if (id == 0) return;
 
         System.out.print("Are you sure you want to delete user ID " + id + "? (y/n): ");
         String confirm = scanner.nextLine().trim();

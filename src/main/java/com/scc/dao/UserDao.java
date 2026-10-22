@@ -26,7 +26,6 @@ public class UserDao {
         }
     }
 
-    /** Saves a new user. Status is always PENDING on registration. */
     public boolean register(String username, String password, String role) {
         String sql = "INSERT INTO users (username, password, roles, status) VALUES (?, ?, ?, 'PENDING')";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -41,7 +40,6 @@ public class UserDao {
         }
     }
 
-    /** Verifies username and password only. */
     public Optional<User> login(String username, String password) {
         String sql = "SELECT id, username, password, roles, status FROM users WHERE username = ? AND password = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -64,8 +62,9 @@ public class UserDao {
         return Optional.empty();
     }
 
-    // --- ADMINISTRATOR DATABASE METHODS ---
+    // --- DELIVERABLE 5 REQUIRED METHODS ---
 
+    /** Returns a List<User> containing all registered accounts regardless of role. */
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
         String sql = "SELECT id, username, password, roles, status FROM users";
@@ -87,22 +86,21 @@ public class UserDao {
         return users;
     }
 
-    public List<User> getUsersByStatus(String status) {
+    /** Returns a List<User> where status = 'PENDING' across all user roles. */
+    public List<User> getPendingUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT id, username, password, roles, status FROM users WHERE status = ?";
+        String sql = "SELECT id, username, password, roles, status FROM users WHERE status = 'PENDING'";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    users.add(new User(
-                            rs.getInt("id"),
-                            rs.getString("username"),
-                            rs.getString("password"),
-                            rs.getString("roles"),
-                            rs.getString("status")
-                    ));
-                }
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getInt("id"),
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getString("roles"),
+                        rs.getString("status")
+                ));
             }
         } catch (SQLException e) {
             System.out.println("Error: " + e.getMessage());
@@ -110,12 +108,12 @@ public class UserDao {
         return users;
     }
 
-    public boolean updateStatus(int id, String status) {
-        String sql = "UPDATE users SET status = ? WHERE id = ?";
+    /** Updates a target user's account status from 'PENDING' to 'APPROVED'. */
+    public boolean approveUser(int userid) {
+        String sql = "UPDATE users SET status = 'APPROVED' WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setInt(2, id);
+            ps.setInt(1, userid);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.out.println("Error: " + e.getMessage());
@@ -123,6 +121,7 @@ public class UserDao {
         }
     }
 
+    // Extra utility methods for admin management
     public boolean adminAddUser(String username, String password, String role, String status) {
         String sql = "INSERT INTO users (username, password, roles, status) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
