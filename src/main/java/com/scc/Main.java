@@ -1,6 +1,7 @@
 package com.scc;
 
 import com.scc.dao.DatabaseInitializer;
+import com.scc.dao.DatabaseInitializer;
 import com.scc.dao.UserDao;
 import com.scc.ui.Authentication;
 
