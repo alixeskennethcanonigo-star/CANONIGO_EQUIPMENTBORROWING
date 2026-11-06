@@ -1,5 +1,6 @@
 package com.scc.ui;
 
+import com.scc.dao.ActivityLogDao;
 import com.scc.dao.UserDao;
 import com.scc.model.User;
 
@@ -9,6 +10,7 @@ import java.util.Scanner;
 public class Authentication {
 
     private final UserDao userDao;
+    private final ActivityLogDao logDao;
     private final Scanner scanner;
 
     private static final String[] ROLES = {
@@ -17,6 +19,7 @@ public class Authentication {
 
     public Authentication(UserDao userDao, Scanner scanner) {
         this.userDao = userDao;
+        this.logDao = new ActivityLogDao();
         this.scanner = scanner;
     }
 
@@ -87,15 +90,25 @@ public class Authentication {
         System.out.print("Password: ");
         String password = scanner.nextLine().trim();
 
-        Optional<User> result = userDao.login(username, password);
-        if (result.isPresent()) {
-            User user = result.get();
-            // Route Administrator to AdminMenu, others to UserMenu
+        Optional<User> userCheck = userDao.getLoginCheck(username, password);
+        if (userCheck.isPresent()) {
+            User user = userCheck.get();
+            if (user.status().equalsIgnoreCase("PENDING")) {
+                System.out.println("Login failed: Your account is still PENDING approval by an administrator.");
+                return;
+            }
+
+            // Log successful login
+            logDao.logAction(user.id(), "USER_LOGIN", "User " + user.username() + " (ID: " + user.id() + ") logged in.");
+
             if (user.roles().equalsIgnoreCase("ADMINISTRATOR")) {
                 new AdminMenu(user, userDao, scanner).show();
             } else {
                 new UserMenu(user, scanner).show();
             }
+
+            // Log logout upon returning from menu
+            logDao.logAction(user.id(), "USER_LOGOUT", "User " + user.username() + " (ID: " + user.id() + ") logged out.");
         } else {
             System.out.println("Invalid username or password.");
         }
