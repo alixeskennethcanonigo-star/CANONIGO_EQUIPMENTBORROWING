@@ -101,10 +101,12 @@ public class Authentication {
             // Log successful login
             logDao.logAction(user.id(), "USER_LOGIN", "User " + user.username() + " (ID: " + user.id() + ") logged in.");
 
-            if (user.roles().equalsIgnoreCase("ADMINISTRATOR")) {
-                new AdminMenu(user, userDao, scanner).show();
-            } else {
-                new UserMenu(user, scanner).show();
+            switch (user.roles().trim().toUpperCase()) {
+                case "ADMINISTRATOR" -> new AdminMenu(user, userDao, scanner).show();
+                case "EQUIPMENT STAFF" -> new EquipmentStaffMenu(user, scanner).show();
+                case "BORROWER" -> new BorrowerMenu(user, scanner).show();
+                case "DEPARTMENT HEAD" -> new DepartmentHeadMenu(user, scanner).show();
+                default -> new UserMenu(user, scanner).show();
             }
 
             // Log logout upon returning from menu
